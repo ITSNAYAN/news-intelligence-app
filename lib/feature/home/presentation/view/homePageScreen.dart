@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:news_api_app/feature/article_details/presentation/article_detail_screen.dart';
+import 'package:news_api_app/feature/auth/presentation/auth_controller.dart';
 import 'package:news_api_app/feature/favorites/presentation/favorite_screen.dart';
-import 'package:news_api_app/feature/home/domain/entity/article_entity.dart';
 import 'package:news_api_app/feature/home/presentation/state/new_state.dart';
 import 'package:news_api_app/feature/home/presentation/state/news_provider.dart';
+import 'package:news_api_app/feature/home/presentation/view/widget/article_card.dart';
+import 'package:news_api_app/feature/home/presentation/view/widget/category_filter.dart';
 import 'package:news_api_app/feature/search/presentation/search_screen.dart';
 
 class Homepagescreen extends ConsumerStatefulWidget {
@@ -29,7 +31,7 @@ class _HomepagescreenState extends ConsumerState<Homepagescreen> {
   @override
   void initState() {
     super.initState();
-    // 1. Attach scroll listener for infinite scroll / pagination
+    // Attach scroll listener for infinite scroll / pagination
     _scrollController.addListener(_onScroll);
   }
 
@@ -46,6 +48,32 @@ class _HomepagescreenState extends ConsumerState<Homepagescreen> {
     // Prevent memory leaks by cleaning up the controller
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Asks for confirmation, then logs out. AuthGate watches the auth state
+  // and swaps this screen for the login page automatically.
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      ref.read(authControllerProvider.notifier).logout();
+    }
   }
 
   @override
@@ -84,51 +112,30 @@ class _HomepagescreenState extends ConsumerState<Homepagescreen> {
               );
             },
           ),
+          // Logout (top right)
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: _confirmLogout,
+          ),
         ],
       ),
       body: Column(
         children: [
-          // 1. Category selector (Business, Tech, etc.)
-          _buildCategoryFilter(state.selectedCategory),
+          // 1. Category selector
+          CategoryFilter(
+            categories: _categories,
+            selectedCategory: state.selectedCategory,
+            onCategorySelected: (category) => ref
+                .read(newsControllerProvider.notifier)
+                .fetchInitialNews(category),
+          ),
 
           // 2. Feed body (Loading, Error, Empty, or List)
           Expanded(
             child: _buildBody(state),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryFilter(String selectedCategory) {
-    return SizedBox(
-      height: 48,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        scrollDirection: Axis.horizontal,
-        itemCount: _categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final category = _categories[index];
-          final isSelected = category == selectedCategory;
-
-          return ChoiceChip(
-            label: Text(
-              category[0].toUpperCase() + category.substring(1),
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-            selected: isSelected,
-            onSelected: (selected) {
-              if (selected && category != selectedCategory) {
-                ref
-                    .read(newsControllerProvider.notifier)
-                    .fetchInitialNews(category);
-              }
-            },
-          );
-        },
       ),
     );
   }
@@ -192,96 +199,17 @@ class _HomepagescreenState extends ConsumerState<Homepagescreen> {
           }
 
           final article = state.articles[index];
-          return _buildArticleCard(article);
-        },
-      ),
-    );
-  }
-
-  Widget _buildArticleCard(ArticleEntity article) {
-    return Card(
-      elevation: 2,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () {
-          // Navigates to Screen 4: Article Details
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ArticleDetailScreen(article: article),
+          return ArticleCard(
+            article: article,
+            // Navigates to Screen 4: Article Details
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ArticleDetailScreen(article: article),
+              ),
             ),
           );
         },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Thumbnail image with network fallback
-            if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
-              Image.network(
-                article.imageUrl!,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildPlaceholder(),
-              )
-            else
-              _buildPlaceholder(),
-
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Source Name
-                  if (article.sourceName != null &&
-                      article.sourceName!.isNotEmpty)
-                    Text(
-                      article.sourceName!.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  const SizedBox(height: 6),
-
-                  // Title
-                  Text(
-                    article.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  // Description snippet
-                  if (article.description != null &&
-                      article.description!.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      article.description!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey.shade700),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
-    );
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      height: 140,
-      width: double.infinity,
-      color: Colors.grey.shade200,
-      child: Icon(Icons.newspaper, size: 48, color: Colors.grey.shade400),
     );
   }
 }
