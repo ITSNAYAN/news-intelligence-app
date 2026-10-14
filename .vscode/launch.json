@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run (With Default Key)",
+      "request": "launch",
+      "type": "dart"
+    },
+    {
+      "name": "Run (With Custom Key)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define",
+        "NEWS_API_KEY=pub_3161f41f956241d1a40a0cd7183d4b30"
+      ]
+    }
+  ]
+}

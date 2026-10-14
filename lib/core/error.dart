@@ -5,7 +5,9 @@ abstract class Failure implements Exception {
   @override
   String toString() => message;
 }
-
+class RateLimitFailure extends Failure {
+  const RateLimitFailure([super.message = 'Daily API limit reached. Try again later.']);
+}
 class AuthFailure extends Failure {
   const AuthFailure(super.message);
 }
@@ -20,4 +22,9 @@ class NetworkFailure extends Failure {
 
 class ServerFailure extends Failure {
   const ServerFailure([super.message = 'Something went wrong on the server.']);
+}
+class ApiKeyFailure extends Failure {
+  const ApiKeyFailure([
+    super.message = 'Invalid or missing API key. Please check your NEWS_API_KEY configuration.',
+  ]);
 }

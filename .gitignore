@@ -43,3 +43,21 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Hive Local Storage
+*.hive
+*.lock
+
+# Secrets & Environment
+.env
+.env.*
+*.env
+lib/core/network/secrets.dart
+lib/**/secrets.dart
+lib/**/api_keys.dart
+launch_env.json
+env.json
+
+# VS Code (preserve launch configuration)
+.vscode/*
+!.vscode/launch.json
